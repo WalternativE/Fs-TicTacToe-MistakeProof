@@ -45,29 +45,38 @@ type Column = Left | Middle | Right
 type Position = Row * Column
 
 type Winner = PlayerOWins | PlayerXWins // the winner is a player (we use different names for different types)
-type Turn = PlayerOTurn | PlayerXTurn
+type NextTurn = PlayerOTurn | PlayerXTurn
 
 type PastMove = Player * Position
 type PastMoves = PastMove list
 
 type EndedGame = Draw | Won of Winner // an ended game is either won or draw
 
-type GameState = WhosTurn of Turn * PastMoves
+// now we need to encode who's turn it is.
+type RunningGame =
+    { NextTurn : NextTurn
+      PastMoves : PastMoves } // ugly collection of all state in the game
+
+type Game = Ended of EndedGame | Running of RunningGame  // a game is either running or ended
 
 // -> It is not possible to play out of turn.
 // We need behaviour. Let's start with simple behaviour.
 
-// first try, but Game is also Ended :-(
-type Game1 = Ended | Running of Turn // a game is either running or ended
-type Move1 = Player * Position // a player makes his move, starting point
+let newGame () = (PlayerXTurn, []) // starts a new game, new game is running and it is player x's turn
 
-// now we need to encode who's turn it is.
-let newGame () = Running(PlayerXTurn) // starts a new game, new game is running and it is player x's turn
+let makeTurn (p : Position) (rg : RunningGame) =
+    let isGameWon (pm : PastMoves) : (Winner option) =
+        None // fake behaviour, ignore winner
 
-let makeTurn1 (m : Move1) (g : Game1) =
-    match g with
-    | Running t -> ()
-    | Ended -> ()
+    match (isGameWon rg.PastMoves) with // fake behaviour, do not add new move
+    | Some w -> Ended(Won(w))
+    | None -> Running(rg) // fake behaviour, do not flip turn
+    // -> Ended(Draw)
 
-let makeTurn2 (p : Position) (g : GameState) =
-    ()
+// we cannot makeTurn on ended game. cool.
+// we cannot play out of turn (solved with API)
+// we cannot use positions other than 9
+// we cannot pass null. cool.
+
+// the list of moves is maybe a problem. The evil client can reconstruct it in different way.
+// ? can we hide the types inside RunningGame. Can we restrict creation of RunningGame?
