@@ -54,41 +54,44 @@ type EndedGame = Draw | Won of Winner // an ended game is either won or draw
 
 // now we need to encode who's turn it is.
 type RunningGame =
-    { NextTurn : NextTurn
-      PastMoves : PastMoves } // ugly collection of all state in the game
+    { Turn : NextTurn
+      PastMoves : PastMoves } // ugly collection of all state in the game, but nobody is using it
 
 type MakeTurn = Position -> Game // circular type is a smell
 and Game = Ended of EndedGame | Running of MakeTurn * PastMoves // a game is either running or ended
 
-// -> It is not possible to play out of turn.
-// We need behaviour. Let's start with simple behaviour.
-
-let newGame () = // starts a new game, new game is running and it is player x's turn
-    let isGameWon (pm : PastMoves) : (Winner option) =
+let newGame () = 
+    let tryGetWinner (pm : PastMoves) : (Winner option) =
         None // fake behaviour, ignore winner
 
-    let createMove (nt : NextTurn) (p : Position) =
-        match nt with
-        | PlayerXTurn -> X, p
-        | PlayerOTurn -> O, p
+    let mapTurnToPlayer = function
+        | PlayerXTurn -> X
+        | PlayerOTurn -> O
 
-    let nextTurnForCurrentTurn = function
+    let createMove (nt : NextTurn) (p : Position) =
+        mapTurnToPlayer nt, p
+
+    let nextTurn = function
         | PlayerXTurn -> PlayerOTurn
         | PlayerOTurn -> PlayerXTurn
     
-    let rec makeTurn (rg : RunningGame) (p : Position) =
-        let nPastMoves = (createMove rg.NextTurn p)::rg.PastMoves
+    let nextRunningGame (nt : NextTurn) (m : PastMoves) =
+        { Turn = nt ; PastMoves = m }
+        
+    let rec takeTurn (rg : RunningGame) (p : Position) =
+        let currentMoves = (createMove rg.Turn p)::rg.PastMoves
 
-        match (isGameWon nPastMoves) with // fake behaviour, do not add new move
+        match (tryGetWinner currentMoves) with
         | Some w -> Ended(Won(w))
         | None ->
-            let nrg = { rg with NextTurn = nextTurnForCurrentTurn rg.NextTurn ; PastMoves = nPastMoves}
-            Running(makeTurn nrg, nrg.PastMoves)
+            let nrg = nextRunningGame (nextTurn rg.Turn) currentMoves
+            Running(takeTurn nrg, nrg.PastMoves)
         // -> Ended(Draw)
 
-    let initialGame = { NextTurn = PlayerXTurn; PastMoves = [] }
+    // starts a new game, new game is running and it is player x's turn
+    let initialGame = { Turn = PlayerXTurn; PastMoves = [] } 
 
-    Running(makeTurn initialGame, initialGame.PastMoves) 
+    Running(takeTurn initialGame, initialGame.PastMoves) 
 
 // we cannot makeTurn on ended game. cool.
 // we cannot play out of turn (solved with API)
