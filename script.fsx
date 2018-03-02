@@ -66,11 +66,24 @@ and Game = Ended of EndedGame | Running of MakeTurn * PastMoves // a game is eit
 let newGame () = // starts a new game, new game is running and it is player x's turn
     let isGameWon (pm : PastMoves) : (Winner option) =
         None // fake behaviour, ignore winner
+
+    let createMove (nt : NextTurn) (p : Position) =
+        match nt with
+        | PlayerXTurn -> X, p
+        | PlayerOTurn -> O, p
+
+    let nextTurnForCurrentTurn = function
+        | PlayerXTurn -> PlayerOTurn
+        | PlayerOTurn -> PlayerXTurn
     
     let rec makeTurn (rg : RunningGame) (p : Position) =
-        match (isGameWon rg.PastMoves) with // fake behaviour, do not add new move
+        let nPastMoves = (createMove rg.NextTurn p)::rg.PastMoves
+
+        match (isGameWon nPastMoves) with // fake behaviour, do not add new move
         | Some w -> Ended(Won(w))
-        | None -> Running(makeTurn rg, rg.PastMoves) // fake behaviour, do not flip turn
+        | None ->
+            let nrg = { rg with NextTurn = nextTurnForCurrentTurn rg.NextTurn ; PastMoves = nPastMoves}
+            Running(makeTurn nrg, nrg.PastMoves)
         // -> Ended(Draw)
 
     let initialGame = { NextTurn = PlayerXTurn; PastMoves = [] }
@@ -81,6 +94,7 @@ let newGame () = // starts a new game, new game is running and it is player x's 
 // we cannot play out of turn (solved with API)
 // we cannot use positions other than 9
 // we cannot pass null. cool.
+// we cannot send in another RunningGame because we do not see it
 
 // the list of moves is maybe a problem. The evil client can reconstruct it in different way.
 // can we hide the types inside RunningGame. Can we restrict creation of RunningGame?
