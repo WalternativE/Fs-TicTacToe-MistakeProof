@@ -58,7 +58,7 @@ type RunningGame =
       PastMoves : PastMoves } // ugly collection of all state in the game
 
 type MakeTurn = Position -> Game // circular type is a smell
-and Game = Ended of EndedGame | Running of MakeTurn  // a game is either running or ended
+and Game = Ended of EndedGame | Running of MakeTurn * PastMoves // a game is either running or ended
 
 // -> It is not possible to play out of turn.
 // We need behaviour. Let's start with simple behaviour.
@@ -70,12 +70,12 @@ let newGame () = // starts a new game, new game is running and it is player x's 
     let rec makeTurn (rg : RunningGame) (p : Position) =
         match (isGameWon rg.PastMoves) with // fake behaviour, do not add new move
         | Some w -> Ended(Won(w))
-        | None -> Running(makeTurn rg) // fake behaviour, do not flip turn
+        | None -> Running(makeTurn rg, rg.PastMoves) // fake behaviour, do not flip turn
         // -> Ended(Draw)
 
     let initialGame = { NextTurn = PlayerXTurn; PastMoves = [] }
 
-    Running(makeTurn initialGame) 
+    Running(makeTurn initialGame, initialGame.PastMoves) 
 
 // we cannot makeTurn on ended game. cool.
 // we cannot play out of turn (solved with API)
@@ -83,10 +83,10 @@ let newGame () = // starts a new game, new game is running and it is player x's 
 // we cannot pass null. cool.
 
 // the list of moves is maybe a problem. The evil client can reconstruct it in different way.
-// ? can we hide the types inside RunningGame. Can we restrict creation of RunningGame?
+// can we hide the types inside RunningGame. Can we restrict creation of RunningGame?
 
 // now the client
 match (newGame ()) with
 | Ended _ -> None
-| Running mt ->
+| Running (mt, pm) ->  // we get the past moves, so we can draw it on the screen.
     (Center, Middle) |> mt |> Some
