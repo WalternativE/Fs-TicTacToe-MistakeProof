@@ -44,18 +44,30 @@ type Row = Top | Center | Bottom
 type Column = Left | Middle | Right
 type Position = Row * Column
 
-type Winner = Player // the winner is a player
+type Winner = PlayerOWins | PlayerXWins // the winner is a player (we use different names for different types)
+type Turn = PlayerOTurn | PlayerXTurn
+
+type PastMove = Player * Position
+type PastMoves = PastMove list
 
 type EndedGame = Draw | Won of Winner // an ended game is either won or draw
-type Game = Running | Ended // a game is either running or ended
 
-type Turn = Player
-type Move = Player * Position // a player makes his move, starting point
+type GameState = WhosTurn of Turn * PastMoves
 
 // -> It is not possible to play out of turn.
 // We need behaviour. Let's start with simple behaviour.
 
-type CreateNewGame = unit -> Game
-let newGame () = Running
+// first try, but Game is also Ended :-(
+type Game1 = Ended | Running of Turn // a game is either running or ended
+type Move1 = Player * Position // a player makes his move, starting point
 
-// now we need to encode who's turn it is. need to encode
+// now we need to encode who's turn it is.
+let newGame () = Running(PlayerXTurn) // starts a new game, new game is running and it is player x's turn
+
+let makeTurn1 (m : Move1) (g : Game1) =
+    match g with
+    | Running t -> ()
+    | Ended -> ()
+
+let makeTurn2 (p : Position) (g : GameState) =
+    ()
