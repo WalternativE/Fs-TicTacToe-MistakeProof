@@ -13,22 +13,21 @@ let columns = [ Left; Middle; Right ] // constant
 
 type Position = Row * Column
 
-type Winner = PlayerOWins | PlayerXWins // the winner is a player (we use different names for different types)
+type Winner = PlayerOWins | PlayerXWins 
 type NextTurn = PlayerOTurn | PlayerXTurn
 
 type PastMove = Player * Position
 type PastMoves = PastMove list
 
-type EndedGame = Draw | Won of Winner // an ended game is either won or draw
+type EndedGame = Draw | Won of Winner 
 
-// now we need to encode who's turn it is.
 type RunningGame =
     { Turn : NextTurn
-      PastMoves : PastMoves } // ugly collection of all state in the game, but nobody is using it
+      PastMoves : PastMoves }
 
-type MakeMove = unit -> Game // circular type is a smell
+type MakeMove = unit -> Game // circular type is a smell, now it is 3
 and MakeTurn = MakeMove list
-and Game = Ended of EndedGame | Running of MakeTurn * PastMoves // a game is either running or ended
+and Game = Ended of EndedGame | Running of MakeTurn * PastMoves
 
 let newGame () = 
     let tryGetWinner (pm : PastMoves) : (Winner option) =
@@ -45,15 +44,26 @@ let newGame () =
         | PlayerXTurn -> PlayerOTurn
         | PlayerOTurn -> PlayerXTurn
     
-    let nextRunningGame (nt : NextTurn) (m : PastMoves) =
-        { Turn = nt ; PastMoves = m }
-        
-    let getPossiblePositions (m : PastMoves) =
-        let pastPositions = List.map (fun move -> snd move ) m
-        let allPositions = product rows columns
+    let nextRunningGame (nt : NextTurn) (pm : PastMoves) =
+        { Turn = nt ; PastMoves = pm }
 
-        (Set.ofList allPositions) - (Set.ofList pastPositions)
-        |> List.ofSeq
+    let allPositions = 
+        product rows columns
+
+    let possiblePositionsAfter (pm : PastMoves) =
+        let pastPositions = List.map (fun move -> snd move ) pm
+        (Set.ofList allPositions) - (Set.ofList pastPositions) |> List.ofSeq
+
+    let runningGameUsing takeTurn (game : RunningGame) (possiblePositions : Position list) = 
+        let possibleMoves =
+            possiblePositions
+            |> List.map (fun pos -> takeTurn game pos)
+
+        Running(possibleMoves, game.PastMoves)
+
+    let advance takeTurn (currentMoves : PastMoves) (rg : RunningGame) =
+        let nrg = nextRunningGame (nextTurn rg.Turn) currentMoves
+        runningGameUsing takeTurn nrg (possiblePositionsAfter currentMoves)
 
     let rec takeTurn (rg : RunningGame) (p : Position) () =
         let currentMoves = (createMove rg.Turn p)::rg.PastMoves
@@ -61,20 +71,11 @@ let newGame () =
         match (tryGetWinner currentMoves) with
         | Some w -> Ended(Won(w))
         | None ->
-            let nrg = nextRunningGame (nextTurn rg.Turn) currentMoves
-            let possibleMoves =
-                getPossiblePositions currentMoves
-                |> List.map (fun pos -> takeTurn nrg pos)
-            Running( possibleMoves, nrg.PastMoves)
-        // -> Ended(Draw)
+            advance takeTurn currentMoves rg
+            // -> Ended(Draw)
 
-    // starts a new game, new game is running and it is player x's turn
     let initialGame = { Turn = PlayerXTurn; PastMoves = [] } 
-    let initialPossibleMoves =
-        product rows columns
-        |> List.map (fun pos -> takeTurn initialGame pos)
-
-    Running(initialPossibleMoves, initialGame.PastMoves)
+    runningGameUsing takeTurn initialGame allPositions
 
 // we cannot makeTurn on ended game
 // we cannot play out of turn (solved with API)
